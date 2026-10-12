@@ -52,7 +52,7 @@ async function restoreDraft() {
     $("identity-other").value = b.identityOther || ""; $("type-other").value = b.typeOther || "";
     for (const [name, key] of [["reporterName", "name"], ["organization", "organization"], ["phone", "phone"]]) form.elements[name].value = b.reporter?.[key] || "";
     saveDraft(owner, draft);
-    $("draft-status").textContent = "已恢复草稿，继续填写时会自动保存";
+    $("draft-status").textContent = draft.origin === "chat" ? "已从智能问答预填 · 请核对已有内容并补充空白信息，再确认提交" : "已恢复草稿，继续填写时会自动保存";
     if (draft.attachmentName) {
       try { const file = await loadAttachment(owner, draft.id); if (!file) throw Error(); const transfer = new DataTransfer(); transfer.items.add(file); $("attachment").files = transfer.files; }
       catch { attachmentFailed = true; $("draft-status").textContent = `文字已恢复；附件“${draft.attachmentName}”需重新选择`; }

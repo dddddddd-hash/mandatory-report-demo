@@ -1,13 +1,14 @@
-import { api, post, esc, time, toast, icon, openDialog, bindDialog } from "/common.js";
+import { api, post, esc, time, toast, icon, openDialog, bindDialog, chatUserId } from "/common.js";
 import { mountShell, learnerId, chooseLearner } from "/shell.js";
 import { readEvents } from "/event-stream.js";
 import { modelBrand, displayModelName } from "/model-brand.js";
-import { listDrafts, removeDraft } from "/report-drafts.js";
+import { listDrafts, getDraft, saveDraft, removeDraft } from "/report-drafts.js";
 const $ = id => document.getElementById(id);
 const page = location.pathname.slice(1) || "ask";
 const main = $("portal-main");
 let data, config, current = null, generating = false, recent = [], learning = [], filter = "all", pendingDelete = null;
 let streamingText = "", streamingKind = "message", streamingModel = "", streamError = false;
+let activeRequestId = null, streamController = null, stopRequested = false, stopping = false, stopPromise = null, outgoingText = "", pollVersion = 0;
 const quickQuestions = [
   ["教师发现伤痕怎么办？", "学生出现伤痕并害怕回家，教师应该怎么做？"],
   ["证据不充分能报告吗？", "没有完整证据，可以报告疑似侵害吗？"],
@@ -119,6 +120,7 @@ function streamMessageHTML() {
   return `<div class="message assistant streaming-message"><span class="message-avatar">${modelImage(streamingModel || model())}</span><div class="message-body"><div id="streaming-message-text" class="message-text">${streamingText ? text(streamingText) : '<span class="thinking-dots" aria-label="正在等待模型回复"><i></i><i></i><i></i></span>'}</div><div class="message-meta"><span id="streaming-message-status">${streamError ? "回答中断 · 此片段未保存，可重试" : streamingText ? "正在回复…" : "正在思考…"}</span> · ${esc(modelName(streamingModel || model()))}</div></div></div>`;
 }
 function showDelta(content) {
+  if (stopRequested) return;
   streamingText += content;
   const container = $("chat-messages"), follow = container && container.scrollHeight - container.scrollTop - container.clientHeight < 100;
   const target = streamingKind === "feedback" ? $("feedback-stream-text") : $("streaming-message-text");
@@ -129,23 +131,26 @@ function showDelta(content) {
 function clearStream() { streamingText = ""; streamError = false; }
 async function streamSession(path, payload, kind = "message") {
   clearStream(); streamingKind = kind; streamingModel = payload.model; closeModelMenu();
-  const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: JSON.stringify({ ...payload, stream: true }) });
+  streamController = new AbortController();
+  const response = await fetch(path, { method: "POST", signal: streamController.signal, headers: { "Content-Type": "application/json", Accept: "text/event-stream", "X-Chat-User": chatUserId() }, body: JSON.stringify({ ...payload, stream: true, ...(kind === "message" ? { requestId: activeRequestId } : {}) }) });
   if (!response.headers.get("content-type")?.includes("text/event-stream")) {
     const result = await response.json(); if (!response.ok) throw Error(result.error || "请求失败"); return result;
   }
   let result;
   await readEvents(response.body, ({ event, data: raw }) => {
     const value = JSON.parse(raw);
-    if (event === "session") { current = value; if (kind === "feedback") renderTraining(); else updateChat(); }
+    if (event === "session") { if (!stopRequested) { current = value; if (kind === "feedback") renderTraining(); else updateChat(); } }
     else if (event === "delta") showDelta(value.content);
+    else if (event === "status") { if (!stopRequested && $("streaming-message-status")) $("streaming-message-status").textContent = value.label; }
     else if (event === "done") { result = value; return false; }
-    else if (event === "error") { if (value.session) current = value.session; streamError = true; throw Error(value.error || "回复中断，请重试"); }
+    else if (event === "stopped") { result = { ...value.session, stopped: true, restore: value.restore }; return false; }
+    else if (event === "error") { if (!stopRequested) { if (value.session) current = value.session; streamError = true; } throw Error(value.error || "回复中断，请重试"); }
   });
   if (!result) { streamError = true; throw Error("连接中断，回答尚未完成，请重试"); }
   clearStream(); return result;
 }
 function messagesHTML(s) {
-  return s.messages.map(m => `<div class="message ${m.role === "user" ? "user" : "assistant"}"><span class="message-avatar">${m.role === "user" ? "我" : modelImage(m.model || s.model, 28, true)}</span><div class="message-body"><div class="message-text">${text(m.content)}</div><div class="message-meta">${m.origin === "scenario" ? "虚构情景 · 角色开场" : m.role === "user" ? "我的提问" : "AI · " + esc(modelName(m.model || s.model))} · ${time(m.time)}</div></div></div>`).join("");
+  return s.messages.map(m => `<div class="message ${m.role === "user" ? "user" : "assistant"}"><span class="message-avatar">${m.role === "user" ? "我" : modelImage(m.model || s.model, 28, true)}</span><div class="message-body"><div class="message-text">${text(m.content)}</div>${m.sources?.length ? `<div class="message-sources"><span>联网参考 · 中等范围</span>${m.sources.map(source => `<a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)} ↗</a>`).join("")}<p>${esc(m.searchNote || "")}</p></div>` : ""}<div class="message-meta">${m.origin === "scenario" ? "虚构情景 · 角色开场" : m.role === "user" ? "我的提问" : "AI · " + esc(modelName(m.model || s.model))} · ${time(m.time)}</div></div></div>`).join("") + (s.kind === "qa" && s.reportDraft ? `<section class="chat-report-action"><div><strong>已根据对话整理报告草稿</strong><p>${esc(s.reportDraft.fields.description.slice(0, 100))}</p><small>未知信息留空；进入表单后请核对，尚未提交。</small></div><button type="button" class="primary mini" data-open-report="${esc(s.id)}">检查并填写报告 ↗</button></section>` : "");
 }
 function composer() { return `<form id="chat-form" class="chat-composer"><label for="chat-input" class="visually-hidden">输入对话内容</label><textarea id="chat-input" rows="1" maxlength="4000" placeholder="描述您的问题；请不要提供真实未成年人的个人信息…"></textarea><div class="composer-bottom"><span>Enter 发送 · Shift + Enter 换行<br>对话会保存到“我的记录”</span><button id="chat-send" class="primary" type="submit">发送 <span aria-hidden="true">↑</span></button></div></form>`; }
 function chatCard(training = false) {
@@ -160,9 +165,11 @@ function updateChat() {
   const pending = current?.messages.at(-1)?.role === "user";
   retry.hidden = !(current?.lastError || pending && !generating);
   if (!retry.hidden) retry.innerHTML = `<span>${esc(current.lastError || "上一条提问尚未返回回复，可以重试。")}</span><button type="button" data-retry ${generating ? "disabled" : ""}>重试回复</button>`;
-  $("chat-send").disabled = generating || pending;
-  $("chat-send").textContent = generating ? "正在回复…" : "发送 ↑";
-  if ((generating || streamError && streamingText) && streamingKind === "message") $("chat-messages").insertAdjacentHTML("beforeend", streamMessageHTML());
+  const canStop = generating && streamingKind === "message";
+  $("chat-send").disabled = stopping || (canStop ? !current?.id : generating || pending);
+  $("chat-send").textContent = stopping ? "正在停止…" : canStop ? "停止 ■" : "发送 ↑";
+  $("chat-send").classList.toggle("stop-generation", canStop);
+  if (!stopRequested && (generating || streamError && streamingText) && streamingKind === "message") $("chat-messages").insertAdjacentHTML("beforeend", streamMessageHTML());
   if ($("model-trigger")) $("model-trigger").disabled = generating;
   if (current?.kind === "qa") { $("chat-title").textContent = current.title; $("chat-subtitle").textContent = "当前模型 " + modelName(model()); }
   $("chat-messages").scrollTop = $("chat-messages").scrollHeight;
@@ -180,7 +187,7 @@ function resizeComposer() {
   if (follow) messages.scrollTop = messages.scrollHeight;
 }
 function bindComposer() {
-  $("chat-form").onsubmit = e => { e.preventDefault(); sendMessage(); };
+  $("chat-form").onsubmit = e => { e.preventDefault(); if (generating && streamingKind === "message") stopReply(); else sendMessage(); };
   $("chat-input").oninput = resizeComposer;
   $("chat-input").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!generating && !current?.lastError) sendMessage(); } };
   composerObserver?.disconnect();
@@ -191,12 +198,14 @@ function bindComposer() {
 }
 function resumeGeneration(s) {
   if (!s.busy) return;
+  const version = ++pollVersion;
+  activeRequestId = s.generation?.id || null; outgoingText = s.messages.at(-1)?.role === "user" ? s.messages.at(-1).content : "";
   generating = true; streamingKind = s.generation?.kind || (s.state === "completed" ? "feedback" : "message"); streamingModel = s.model; streamingText = s.generation?.content || "";
   if (s.state === "completed") renderTraining(); else updateChat();
   const id = s.id;
   const poll = async () => {
-    if (current?.id !== id) return;
-    try { current = await sessionGet(id); if (current.busy) { streamingText = current.generation?.content || ""; if (current.state === "completed") renderTraining(); else updateChat(); setTimeout(poll, 2000); } else { generating = false; clearStream(); if (page === "training" && current.state === "completed") renderTraining(); else updateChat(); } }
+    if (current?.id !== id || version !== pollVersion || stopRequested) return;
+    try { const result = await sessionGet(id); if (version !== pollVersion || stopRequested) return; current = result; if (current.busy) { streamingText = current.generation?.content || ""; if (current.state === "completed") renderTraining(); else updateChat(); setTimeout(poll, 2000); } else { generating = false; clearStream(); if (page === "training" && current.state === "completed") renderTraining(); else updateChat(); } }
     catch { generating = false; updateChat(); }
   };
   setTimeout(poll, 2000);
@@ -204,7 +213,7 @@ function resumeGeneration(s) {
 async function refreshRecent() { recent = await api(personUrl("/api/sessions")); if ($("chat-session-list")) renderRecent(); }
 function renderRecent() { $("chat-session-list").innerHTML = recent.filter(s => s.kind === "qa").slice(0, 12).map(s => `<button class="session-link ${s.id === current?.id ? "active" : ""}" type="button" data-session="${s.id}"><span>${esc(s.title)}</span></button>`).join("") || `<p class="muted">还没有问答记录</p>`; }
 async function qaPage() {
-  main.innerHTML = intro("智能问答", "从一个问题开始，了解报告与保护的下一步。", picker()) + disclaimer + `<div class="chat-layout"><aside class="chat-sessions"><h3>最近的对话</h3><button id="new-chat" type="button" class="secondary">＋ 新建问答</button><div id="chat-session-list" class="chat-session-list"></div></aside>${chatCard()}</div><div class="qa-links"><span>当前使用内置制度要点，案例知识库尚未接入。</span><a href="/report">需要报告？填写表单 ↗</a></div>` + footer();
+  main.innerHTML = intro("智能问答", "从一个问题开始，了解报告与保护的下一步。", `<button type="button" data-open-memory class="secondary mini">我的记忆</button>` + picker()) + disclaimer + `<div class="chat-layout"><aside class="chat-sessions"><h3>最近的对话</h3><button id="new-chat" type="button" class="secondary">＋ 新建问答</button><div id="chat-session-list" class="chat-session-list"></div></aside>${chatCard()}</div><div class="qa-links"><span>联网检索 · 中等范围 · 尚未接入专用案例库</span><div class="actions"><button type="button" class="text-button mini" data-build-report>从对话整理报告 ↗</button><a href="/report">填写表单 ↗</a></div></div>` + footer();
   bindModel(); bindComposer(); updateChat();
   $("new-chat").onclick = () => { if (generating) return toast("请等待当前回复完成"); clearStream(); current = null; history.replaceState(null, "", "/ask"); $("chat-title").textContent = "强制报告助手"; $("chat-input").value = ""; updateChat(); renderRecent(); };
   await refreshRecent();
@@ -218,6 +227,8 @@ async function sendMessage(retry = false) {
   if (!retry && !content) return toast("请先输入对话内容");
   if (!retry && current?.lastError) return toast("请先重试上一条提问");
   clearStream(); streamingKind = "message"; generating = true;
+  stopRequested = false; stopping = false; stopPromise = null;
+  activeRequestId = crypto.randomUUID(); outgoingText = retry ? current?.messages.at(-1)?.content || "" : content;
   const selected = model();
   streamingModel = selected;
   let beforeCount = current?.messages.length || 0;
@@ -226,9 +237,44 @@ async function sendMessage(retry = false) {
     beforeCount = current.messages.length;
     if (!retry) { current.messages.push({ role: "user", content, time: new Date().toISOString() }); $("chat-input").value = ""; }
     updateChat();
-    current = await streamSession(`/api/sessions/${current.id}/${retry ? "reply" : "messages"}`, { learnerId: learnerId(), model: selected, content });
-  } catch (e) { streamError = !!streamingText; toast(e.message); if (current?.id) { try { current = await sessionGet(current.id); if (!retry && current.messages.length <= beforeCount) $("chat-input").value = content; } catch {} } }
-  finally { generating = false; if (current?.messages.at(-1)?.role === "assistant") clearStream(); if (current?.busy) resumeGeneration(current); else updateChat(); if (page === "ask") await refreshRecent(); }
+    const result = await streamSession(`/api/sessions/${current.id}/${retry ? "reply" : "messages"}`, { learnerId: learnerId(), model: selected, content });
+    if (!stopRequested) { current = result; if (result.stopped) { $("chat-input").value = result.restore?.content || outgoingText; clearStream(); } }
+  } catch (e) { if (!stopRequested) { streamError = !!streamingText; toast(e.message); if (current?.id) { try { current = await sessionGet(current.id); if (!retry && current.messages.length <= beforeCount) $("chat-input").value = content; } catch {} } } }
+  finally { if (stopPromise) await stopPromise; generating = false; stopping = false; stopRequested = false; activeRequestId = null; streamController = null; if (current?.messages.at(-1)?.role === "assistant") clearStream(); if (current?.busy) resumeGeneration(current); else updateChat(); if (page === "ask") await refreshRecent(); }
+}
+async function stopReply() {
+  if (!generating || stopping || !current?.id) return;
+  stopping = true; stopRequested = true; ++pollVersion;
+  const fallback = outgoingText || (current.messages.at(-1)?.role === "user" ? current.messages.at(-1).content : "");
+  clearStream(); $("chat-input").value = fallback; updateChat();
+  stopPromise = (async () => {
+    try {
+      const result = await post(`/api/sessions/${current.id}/stop`, { learnerId: learnerId(), requestId: activeRequestId || current.generation?.id });
+      current = result.session;
+      if ($("chat-input").value === fallback) $("chat-input").value = result.restore?.content || fallback;
+      streamController?.abort(); clearStream();
+      // A restored page has a polling loop rather than a local send promise.
+      if (!streamController) { generating = false; stopping = false; stopRequested = false; activeRequestId = null; updateChat(); }
+      $("chat-input").focus(); resizeComposer(); toast(result.completed ? "回复已完成，提问已放回输入框，可继续编辑" : "已停止，原消息已放回输入框，可编辑后重新发送");
+    } catch (e) {
+      stopRequested = false; stopping = false; toast("停止请求未完成：" + e.message);
+      try { current = await sessionGet(current.id); if (current.busy) resumeGeneration(current); } catch {}
+      updateChat();
+    }
+  })();
+  await stopPromise;
+}
+async function openMemory() {
+  const memory = await api(personUrl("/api/memory"));
+  $("memory-owner").textContent = data.who.name;
+  $("memory-long-term").value = memory.longTerm;
+  $("memory-short-term").innerHTML = memory.shortTerm.length ? memory.shortTerm.slice().reverse().map(item => `<div class="memory-item"><strong>${esc(item.question)}</strong><p>${esc(item.answer.slice(0, 250))}</p><small>${time(item.updatedAt)}</small></div>`).join("") : `<p class="muted">还没有近期对话记忆。完成问答后会自动保存。</p>`;
+  openDialog($("memory-dialog"));
+}
+async function openReportDraft(value) {
+  const existing = getDraft(learnerId(), value.id);
+  saveDraft(learnerId(), existing || value);
+  location.href = "/report?draft=" + encodeURIComponent(value.id);
 }
 function trainingListing() {
   clearStream(); current = null;
@@ -315,6 +361,15 @@ main.onclick = async e => {
   const button = e.target.closest("button"); if (!button || button.disabled) return;
   try {
     if (button.dataset.question) { $("chat-input").value = button.dataset.question; resizeComposer(); $("chat-input").focus(); }
+    else if (button.hasAttribute("data-open-memory")) await openMemory();
+    else if (button.dataset.openReport) { if (generating) return toast("请先停止或等待当前回复"); const s = current?.id === button.dataset.openReport ? current : await sessionGet(button.dataset.openReport); if (!s.reportDraft) return toast("尚未准备好报告草稿"); await openReportDraft(s.reportDraft); }
+    else if (button.hasAttribute("data-build-report")) {
+      if (generating) return toast("请先停止或等待当前回复");
+      if (!current?.messages.some(m => m.role === "user")) return toast("请先在对话中描述需要报告的情况");
+      generating = true; streamingKind = "draft"; button.disabled = true; button.textContent = "正在整理草稿…"; updateChat();
+      try { const value = await post(`/api/sessions/${current.id}/report-draft`, { learnerId: learnerId(), model: model() }); await openReportDraft(value); }
+      finally { generating = false; streamingKind = "message"; if (button.isConnected) { button.disabled = false; button.textContent = "从对话整理报告 ↗"; updateChat(); } }
+    }
     else if (button.dataset.session) { if (generating) return toast("请等待回复完成"); openQA(await sessionGet(button.dataset.session)); }
     else if (button.hasAttribute("data-retry")) await sendMessage(true);
     else if (button.hasAttribute("data-become-teacher")) chooseLearner("teacher-1");
@@ -336,6 +391,10 @@ main.onclick = async e => {
   } catch (e) { toast(e.message); if (button.isConnected) button.disabled = false; }
 };
 bindDialog($("record-detail")); bindDialog($("delete-dialog"));
+bindDialog($("memory-dialog"));
+$("memory-close").onclick = () => $("memory-dialog").close();
+$("memory-save").onclick = async () => { $("memory-save").disabled = true; try { await post("/api/memory", { learnerId: learnerId(), longTerm: $("memory-long-term").value }); $("memory-dialog").close(); toast("长期记忆已保存，会在此身份的新对话中使用"); } catch (e) { toast(e.message); } finally { $("memory-save").disabled = false; } };
+$("memory-clear").onclick = async () => { $("memory-clear").disabled = true; try { await api(personUrl("/api/memory"), { method: "DELETE" }); await openMemory(); toast("长期与短期记忆已清空，对话记录仍保留"); } catch (e) { toast(e.message); } finally { $("memory-clear").disabled = false; } };
 $("close-record").onclick = () => $("record-detail").close(); $("delete-cancel").onclick = () => $("delete-dialog").close();
 $("delete-confirm").onclick = async () => { if (!pendingDelete) return; $("delete-confirm").disabled = true; try { if (pendingDelete.kind === "draft") await removeDraft(learnerId(), pendingDelete.id); else await api(personUrl(`/api/${pendingDelete.kind}/${pendingDelete.id}`), { method: "DELETE" }); $("delete-dialog").close(); pendingDelete = null; await recordsPage(); toast("记录已删除"); } catch (e) { toast(e.message); } finally { $("delete-confirm").disabled = false; } };
 try {

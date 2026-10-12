@@ -1,6 +1,12 @@
 export const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 export const time = v => v ? new Date(v).toLocaleString("zh-CN", { hour12: false }) : "—";
-export async function api(url, options = {}, role = "公安") { const r = await fetch(url, { ...options, headers: { "Content-Type": "application/json", "X-Demo-Role": encodeURIComponent(role), ...options.headers } }); const data = await r.json(); if (!r.ok) throw Error(data.error || "请求失败"); return data; }
+let cachedChatUser;
+export function chatUserId() {
+  if (cachedChatUser) return cachedChatUser;
+  try { const stored = localStorage.getItem("chatUserId"); if (/^[a-f0-9-]{36}$/i.test(stored || "")) return cachedChatUser = stored; cachedChatUser = crypto.randomUUID(); localStorage.setItem("chatUserId", cachedChatUser); } catch { cachedChatUser ||= crypto.randomUUID(); }
+  return cachedChatUser;
+}
+export async function api(url, options = {}, role = "公安") { const r = await fetch(url, { ...options, headers: { "Content-Type": "application/json", "X-Demo-Role": encodeURIComponent(role), "X-Chat-User": chatUserId(), ...options.headers } }); const data = await r.json(); if (!r.ok) throw Error(data.error || "请求失败"); return data; }
 export const post = (url, data, role) => api(url, { method: "POST", body: JSON.stringify(data) }, role);
 export function toast(message) { const t = document.getElementById("toast"); t.textContent = message; t.hidden = false; clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => t.hidden = true, 5000); }
 export function icon(name) {

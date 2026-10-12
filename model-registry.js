@@ -74,5 +74,5 @@ export function modelRoutes(id) {
   return candidates;
 }
 export function modelConfig() {
-  return { configured: publicModels.some(m => m.available), models: publicModels, defaultModel: primaryKey ? legacyModels[0].id : publicModels.find(m => m.available)?.id || legacyModels[0].id, provider: "多通道模型服务", channels, knowledgeBase: false };
+  return { configured: publicModels.some(m => m.available), models: publicModels, defaultModel: primaryKey ? legacyModels[0].id : publicModels.find(m => m.available)?.id || legacyModels[0].id, provider: "多通道模型服务", channels, knowledgeBase: false, capabilities: { search: { enabled: true, strength: "medium", mode: "application-tool", maxResults: 5 }, images: false, memory: true, reportDrafts: true } };
 }
