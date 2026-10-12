@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#9fe870"><title>公众服务 · 强制报告智能体</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/portal.css"></head>
+<body class="public-page">
+  <a class="skip-link" href="#portal-main">跳到页面内容</a>
+  <div class="public-shell"><aside id="public-sidebar" class="public-sidebar"></aside><div class="public-workspace"><header id="public-topbar" class="public-topbar"></header><main id="portal-main" class="portal-main"><p class="muted">正在载入公众服务…</p></main></div></div>
+  <dialog id="record-detail" class="record-dialog" aria-labelledby="record-detail-title"><div class="panel-heading"><h2 id="record-detail-title">记录详情</h2><button type="button" id="close-record" class="icon-button" aria-label="关闭记录详情">×</button></div><div id="record-detail-body"></div></dialog>
+  <dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-title"><h2 id="delete-title">删除这条记录？</h2><p>删除后无法恢复，个人记录与单位台账会同步更新。</p><div class="actions"><button type="button" id="delete-cancel">取消</button><button type="button" id="delete-confirm" class="danger">删除记录</button></div></dialog>
+  <div id="toast" hidden role="status"></div><script type="module" src="/portal.js"></script>
+</body></html>
