@@ -4,12 +4,18 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { handlePortal } from "./portal-api.js";
+import { attachActor, handleAuth } from "./auth.js";
+import { handleDrafts } from "./draft-api.js";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dir = process.env.DATA_DIR || path.join(root, "data");
 fs.mkdirSync(dir, { recursive: true });
 const file = path.join(dir, "database.json");
 let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : { reports: [], logs: [] };
 const save = () => { const temp = file + ".tmp"; fs.writeFileSync(temp, JSON.stringify(db, null, 2)); fs.renameSync(temp, file); };
+if (!db.accountSchemaVersion) {
+  if (fs.existsSync(file)) { const backupDir = path.join(dir, "backups"); fs.mkdirSync(backupDir, { recursive: true }); fs.copyFileSync(file, path.join(backupDir, "before-accounts-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json")); }
+  db.accountSchemaVersion = 1; save();
+}
 const log = (role, action, id) => { db.logs.push({ id: crypto.randomUUID(), role, action, reportId: id, time: new Date().toISOString() }); save(); };
 const departments = ["民政", "教育", "妇联"];
 const roles = ["公安", ...departments, "检察院"];
@@ -43,12 +49,19 @@ export const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     const role = decodeURIComponent(req.headers["x-demo-role"] || "%E5%85%AC%E5%AE%89");
     if (url.pathname.startsWith("/api/")) {
+      if (!["GET", "HEAD"].includes(req.method) && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return reply(res, 403, { error: "请求来源无效" });
+      attachActor(req, res, db, save);
+      if (!url.pathname.startsWith("/api/auth/") && req.headers["x-record-owner"] && req.headers["x-record-owner"] !== req.actor.ownerId) return reply(res, 409, { error: "登录状态已改变，请刷新页面后继续" });
+      if (await handleAuth(req, res, url, db, save, body, reply)) return;
+      if (await handleDrafts(req, res, url, db, save, body, reply)) return;
       if (await handlePortal(req, res, url, db, save, body, reply)) return;
+      if (url.pathname === "/api/my-reports" && req.method === "GET") return reply(res, 200, db.reports.filter(r => r.ownerId === req.actor.ownerId).map(({ id, status, receivedAt }) => ({ id, status, receivedAt })));
       if (!roles.includes(role)) return reply(res, 403, { error: "无效演示部门" });
       supervise();
       if (url.pathname === "/api/assess" && req.method === "POST") return reply(res, 200, assess(await body(req)));
       if (url.pathname === "/api/reports" && req.method === "POST") {
         const b = await body(req);
+        if (req.actor.authenticated) { b.identity = req.actor.user.identity; b.identityOther = req.actor.user.identityOther; }
         if (!b.consent || required.some(k => typeof b[k] !== "string" || !b[k].trim()) || !Array.isArray(b.types) || !b.types.length || b.types.some(t => typeof t !== "string") || !Number.isFinite(Date.parse(b.occurredAt))) return reply(res, 400, { error: "请填写全部必填项并确认重要提示" });
         if (b.identity === "其他" && !b.identityOther?.trim() || b.types.includes("其他") && !b.typeOther?.trim()) return reply(res, 400, { error: "请补充其他身份或事件说明" });
         let attachment = null;
@@ -60,7 +73,8 @@ export const server = http.createServer(async (req, res) => {
         }
         const now = new Date(); const id = "CL-" + now.toISOString().slice(0,10).replaceAll("-", "") + "-" + crypto.randomBytes(3).toString("hex").toUpperCase(); const receipt = crypto.randomBytes(24).toString("hex");
         const r = { id, receipt, ...Object.fromEntries(required.map(k => [k, b[k].trim().slice(0, 10000)])), identityOther: b.identityOther || "", typeOther: b.typeOther || "", types: b.types, reporter: { name: b.reporter?.name || "", organization: b.reporter?.organization || "", phone: b.reporter?.phone || "" }, anonymous: !b.reporter?.name?.trim() && !b.reporter?.phone?.trim(), obligated: ["教师/教育工作者", "医护人员", "社区工作人员"].includes(b.identity), attachment, receivedAt: now.toISOString(), deadline: new Date(now.getTime() + 86400000).toISOString(), ai: assess(b), confirmedTag: null, status: "待受理", department: null, helpSummary: "", helpRecords: [], supervision: [] };
-        db.reports.unshift(r); log("公众", "提交线索，公安接收并开始24小时计时", id); return reply(res, 201, { id, receipt, receivedAt: r.receivedAt, status: r.status });
+        r.ownerId = req.actor.ownerId;
+        db.reports.unshift(r); log("公众", "提交线索，接收工作台开始24小时计时", id); return reply(res, 201, { id, receipt, receivedAt: r.receivedAt, status: r.status });
       }
       if (url.pathname === "/api/receipt" && req.method === "POST") { const b = await body(req); const r = db.reports.find(r => r.id === b.id && r.receipt === b.receipt); return r ? reply(res, 200, { id: r.id, status: r.status, receivedAt: r.receivedAt }) : reply(res, 404, { error: "记录不存在或查询凭证不正确" }); }
       if (url.pathname === "/api/reports" && req.method === "GET") { const reports = db.reports.filter(r => accessible(r, role)).map(r => view(r, role)); log(role, "查看线索列表", null); return reply(res, 200, reports); }
@@ -96,7 +110,7 @@ export const server = http.createServer(async (req, res) => {
       }
       return reply(res, 404, { error: "接口不存在" });
     }
-    const routes = { "/": "portal.html", "/ask": "portal.html", "/training": "portal.html", "/learning": "portal.html", "/records": "portal.html", "/ledger": "portal.html", "/report": "report.html", "/receiver": "receiver.html", "/style.css": "style.css", "/portal.css": "portal.css", "/portal.js": "portal.js", "/shell.js": "shell.js", "/report.js": "report.js", "/receiver.js": "receiver.js", "/common.js": "common.js" };
+    const routes = { "/": "login.html", "/login": "login.html", "/login.css": "login.css", "/login.js": "login.js", "/account.js": "account.js", "/ask": "portal.html", "/training": "portal.html", "/learning": "portal.html", "/records": "portal.html", "/ledger": "portal.html", "/report": "report.html", "/receiver": "receiver.html", "/style.css": "style.css", "/portal.css": "portal.css", "/portal.js": "portal.js", "/shell.js": "shell.js", "/report.js": "report.js", "/receiver.js": "receiver.js", "/common.js": "common.js" };
     for (const asset of ["Gemini.svg", "OpenAI.svg", "Claude.svg", "deepseek.svg", "GROK.svg", "GLM.svg", "kimi.svg", "minimax-color.svg", "longcat-bright.svg", "AI.svg"]) routes["/assets/" + asset] = "assets/" + asset;
     routes["/model-brand.js"] = "model-brand.js";
     routes["/event-stream.js"] = "event-stream.js";

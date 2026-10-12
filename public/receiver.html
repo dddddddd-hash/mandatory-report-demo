@@ -12,15 +12,15 @@
   <div class="app-shell">
     <aside class="app-sidebar" aria-label="工作台导航">
       <a class="brand" href="/receiver"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 4 4 7 8 9 4-2 8-5 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span>强制报告<span class="brand-caption">协同接收工作台</span></span></a>
-      <div class="sidebar-label">部门工作空间</div><nav id="roles" class="department-nav" aria-label="切换演示部门"></nav><div class="sidebar-spacer"></div>
-      <div class="sla-card"><span class="eyebrow">演示处置时限</span><strong>24<span>h</span></strong><p>从公安接收时开始计时<br>A 类超期自动进入检察监督</p></div>
-      <div class="sidebar-bottom"><span class="demo-indicator"><i></i>免登录演示</span><p>切换部门，展示协同流程</p><a href="/report">前往公众报告端 <span aria-hidden="true">↗</span></a></div>
+      <div class="sidebar-label">部门工作空间</div><nav id="roles" class="department-nav" aria-label="切换部门"></nav><div class="sidebar-spacer"></div>
+      <div class="sla-card"><span class="eyebrow">系统处置时限</span><strong>24<span>h</span></strong><p>从公安接收时开始计时<br>A 类超期自动进入检察监督</p></div>
+      <div class="sidebar-bottom"><span class="demo-indicator"><i></i>接收工作台</span><p>切换部门，展示协同流程</p><a href="/report">前往公众报告端 <span aria-hidden="true">↗</span></a></div>
     </aside>
     <div class="workspace">
       <header class="workspace-header"><div class="breadcrumb">协同工作台 <span>/</span> <strong id="current-role">公安</strong></div><div class="workspace-header-right"><span class="badge subtle">规则研判 · 人工复核</span><a class="header-report-link" href="/ask" target="_blank" rel="noopener">公众服务端 <span aria-hidden="true">↗</span></a></div></header>
       <main id="workspace-main" class="workspace-main">
         <section class="workspace-title"><div><div class="eyebrow" id="workspace-eyebrow">POLICE WORKSPACE</div><h1 id="workspace-title">线索接收工作台</h1><p class="muted" id="workspace-description">从接收、研判到处置，让每一条线索有迹可循。</p></div><button id="refresh" class="secondary" type="button"><span aria-hidden="true">↻</span> 刷新线索</button></section>
-        <div class="workspace-meta"><span class="live-status" id="connection">正在连接本地服务…</span><span>仅使用虚构数据演示</span></div>
+        <div class="workspace-meta"><span class="live-status" id="connection">正在连接服务…</span><span>报告者信息仅供内部核实</span></div>
         <div class="stats" id="stats" aria-label="部门线索统计"></div>
         <section class="panel queue-panel" aria-labelledby="queue-title">
           <div class="queue-heading"><div><h2 id="queue-title">线索队列 <span id="queue-count" class="count-badge">0</span></h2><p class="muted" id="queue-description">AI 建议仅供参考，定性需由公安人工复核。</p></div><span class="queue-auto">每 5 秒自动同步</span></div>
@@ -29,7 +29,7 @@
         </section>
         <section class="panel analytics-panel" id="analytics" aria-label="部门线索分布"></section>
         <details class="panel logs-panel" id="logs-panel"><summary><div><span class="eyebrow">AUDIT TRAIL</span><h2>操作与访问日志</h2></div><span class="muted">查看操作记录 <span aria-hidden="true">⌄</span></span></summary><div class="logs-content"><div class="panel-heading"><p class="muted">查看、复核、处置与流转均会记录。</p><button id="load-logs" class="secondary mini" type="button">加载日志 <span aria-hidden="true">↻</span></button></div><div id="logs" class="muted">点击“加载日志”查看最近的操作记录。</div></div></details>
-        <footer class="workspace-footer"><span>强制报告智能体 · 协同保护每一步</span><span>本地演示系统 · AI 建议需人工复核</span></footer>
+        <footer class="workspace-footer"><span>强制报告智能体 · 协同保护每一步</span><span>AI 建议需人工复核</span></footer>
       </main>
     </div>
   </div>

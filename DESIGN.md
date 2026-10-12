@@ -14,13 +14,14 @@ This is an adaptation for the mandatory-report demo, using the reference's lime 
 
 ## Page structure
 
-- Public service: left navigation for questions, training, learning, reporting, records and unit ledgers, with fictional demo role selection.
-- Report: a three-section form, a link to real AI conversation, and local receipt history.
+- Login: a two-column sage canvas with a protection headline, shield illustration and white authentication card; email registration collects an immutable reporting identity. The receiver entry appears only on this page.
+- Public service: left navigation for questions, training, learning, reporting, records and personal training ledgers, with the current account identity and logout action. Guests can access every public feature.
+- Report: a three-section form, locked registered identity, a link to AI conversation, account draft synchronization and receipt history; guests retain local drafts.
 - Receiver: department sidebar, four summary metrics, searchable queue, distributions, collapsible audit log, and a native case detail dialog.
 - Red means risk/overdue/error. Anonymous reports use neutral styling.
 - Responsive layout: stacked public form and assistant on phones, horizontal department navigation, and horizontally scrollable data tables.
 - Real AI serves public conversations, training characters and feedback. Receiver assessment remains a rule demonstration with human confirmation.
-- Training forms persist through the backend; simulated reports never enter the police queue. Unit exports contain completion and scoring summaries.
+- Training forms persist through the backend; simulated reports never enter the police queue. Personal training exports contain completion and scoring summaries.
 
 ## Iterate
 

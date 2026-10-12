@@ -12,12 +12,12 @@
   <a class="skip-link" href="#report-form">跳到报告表单</a>
   <div class="public-shell"><aside id="public-sidebar" class="public-sidebar"></aside><div class="public-workspace"><header id="public-topbar" class="public-topbar"></header>
   <main class="report-container">
-    <section class="report-hero" aria-labelledby="page-title"><div><div class="eyebrow">公众线索报告 · PUBLIC REPORT</div><h1 id="page-title">让保护，<span>及时发生。</span></h1><p>每一条被看见的线索，都可能成为保护的起点。<br class="desktop-break">请描述您了解的情况，鼓励实名，也允许匿名。</p><div class="hero-chips"><span>允许匿名报告</span><span>提交后即时送达</span><span>全程可查进度</span></div></div><div class="hero-seal" aria-label="公安接收后24小时演示处置时限"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><strong>24<span>h</span></strong><p>演示处置时限<br>从公安接收起计时</p></div></div></section>
-    <div class="notice compact-notice"><span class="notice-icon" aria-hidden="true">!</span><p>如正处于紧急危险，请直接拨打 <strong>110</strong>。当前为本地演示，请使用虚构信息。</p><span class="notice-label">重要提示</span></div>
+    <section class="report-hero" aria-labelledby="page-title"><div><div class="eyebrow">公众线索报告 · PUBLIC REPORT</div><h1 id="page-title">让保护，<span>及时发生。</span></h1><p>每一条被看见的线索，都可能成为保护的起点。<br class="desktop-break">请描述您了解的情况，鼓励实名，也允许匿名。</p><div class="hero-chips"><span>允许匿名报告</span><span>提交后即时送达</span><span>全程可查进度</span></div></div><div class="hero-seal" aria-label="系统接收后的处置时限"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><strong>24<span>h</span></strong><p>系统处置时限<br>从工作台接收起计时</p></div></div></section>
+    <div class="notice compact-notice"><span class="notice-icon" aria-hidden="true">!</span><p>如正处于紧急危险，请直接拨打 <strong>110</strong>。请如实记录已知线索，保护未成年人隐私。</p><span class="notice-label">重要提示</span></div>
     <section id="receipt" class="panel receipt-panel" aria-live="polite" hidden></section>
     <div class="report-layout">
       <section class="panel form-panel" id="form-section" aria-labelledby="form-title">
-        <div class="panel-heading"><div><div class="eyebrow">REPORT A CONCERN</div><h2 id="form-title">提交一条线索</h2><p class="muted">带 <span class="required">*</span> 为必填项，其余信息可按实际情况补充。</p></div><button id="fill-demo" type="button" class="secondary mini">填入演示案例 <span aria-hidden="true">↗</span></button></div>
+        <div class="panel-heading"><div><div class="eyebrow">REPORT A CONCERN</div><h2 id="form-title">提交一条线索</h2><p class="muted">带 <span class="required">*</span> 为必填项，其余信息可按实际情况补充。</p></div></div>
         <div class="form-progress"><div class="progress-track"><span id="progress-bar"></span></div><span id="progress-text">已完成 0 / 7 项必填信息</span></div>
         <div class="draft-bar"><p id="draft-status" role="status">草稿自动保存 · 未完成线索可在“我的记录”继续填写</p><div class="actions"><a href="/records">查看草稿 ↗</a><button id="new-report" type="button" class="secondary mini">新建线索</button></div></div>
         <form id="report-form">
@@ -44,15 +44,15 @@
       </section>
       <aside class="report-aside">
         <section class="panel assistant-panel" aria-labelledby="assistant-title"><div class="assistant-heading"><span class="assistant-icon">✦</span></div><h2 id="assistant-title">不确定是否需要报告？</h2><p class="muted">先与智能助手聊聊，了解报告信号、保护措施与证据留存建议。</p><a class="text-link" href="/ask" style="margin-top:22px">进入智能问答 ↗</a><p class="assistant-disclaimer">AI仅供辅助参考，不构成法律意见。紧急危险请直接拨打110。</p></section>
-        <section class="process-card" aria-labelledby="process-title"><div class="eyebrow">WHAT HAPPENS NEXT</div><h2 id="process-title">提交之后，会发生什么？</h2><ol class="process-list"><li><span>1</span><div><strong>公安接收</strong><p>线索即时进入接收工作台。</p></div></li><li><span>2</span><div><strong>研判与人工复核</strong><p>AI 提供建议，工作人员确认。</p></div></li><li><span>3</span><div><strong>处置与协同保护</strong><p>按线索情况处置、帮扶或监督。</p></div></li></ol><a class="text-link" href="/receiver">查看接收工作台 <span aria-hidden="true">↗</span></a></section>
+        <section class="process-card" aria-labelledby="process-title"><div class="eyebrow">WHAT HAPPENS NEXT</div><h2 id="process-title">提交之后，会发生什么？</h2><ol class="process-list"><li><span>1</span><div><strong>公安接收</strong><p>线索即时进入接收工作台。</p></div></li><li><span>2</span><div><strong>研判与人工复核</strong><p>AI 提供建议，工作人员确认。</p></div></li><li><span>3</span><div><strong>处置与协同保护</strong><p>按线索情况处置、帮扶或监督。</p></div></li></ol></section>
         <div class="aside-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg><p>请妥善保管报告编号与查询凭证，避免在公开场合分享线索内容。</p></div>
       </aside>
     </div>
-    <section class="panel records-panel" aria-labelledby="records-title"><div class="panel-heading"><div><h2 id="records-title">我的上报记录</h2><p class="muted">本浏览器保存的报告，可在这里查看处理进度。</p></div><button id="refresh-records" class="secondary mini" type="button">刷新状态 <span aria-hidden="true">↻</span></button></div><div id="records"></div><p class="records-note">清除浏览器存储后，匿名查询凭证将无法在此找回。</p></section>
+    <section class="panel records-panel" aria-labelledby="records-title"><div class="panel-heading"><div><h2 id="records-title">我的上报记录</h2><p class="muted">查看当前用户的报告与处理进度。</p></div><button id="refresh-records" class="secondary mini" type="button">刷新状态 <span aria-hidden="true">↻</span></button></div><div id="records"></div><p class="records-note">登录后上报记录随账号保存；访客记录仅在当前浏览器可见。</p></section>
   </main>
-  <dialog id="confirm" class="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-symbol">!</div><div class="eyebrow">BEFORE YOU SUBMIT</div><h2 id="confirm-title">请确认这些重要提示</h2><p>遇现实紧急危险，请直接拨打 <strong>110</strong> 报警。</p><p>请如实描述线索。报告人及未成年人的信息应严格保密，通过必要渠道提供，避免公开传播。</p><p>故意捏造虚假线索诬告，需承担相应法律责任。AI仅供辅助参考，不构成法律意见。</p><div class="soft-callout">当前为免登录本地演示，请只使用虚构信息。提交内容将进入演示接收端。</div><label class="checkline"><input id="consent" type="checkbox">我已阅读并知晓上述提示</label><div class="actions dialog-actions"><button id="cancel" type="button">返回修改</button><button id="send" class="primary" type="button">确认提交 <span aria-hidden="true">→</span></button></div></dialog>
+  <dialog id="confirm" class="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-symbol">!</div><div class="eyebrow">BEFORE YOU SUBMIT</div><h2 id="confirm-title">请确认这些重要提示</h2><p>遇现实紧急危险，请直接拨打 <strong>110</strong> 报警。</p><p>请如实描述线索。报告人及未成年人的信息应严格保密，通过必要渠道提供，避免公开传播。</p><p>故意捏造虚假线索诬告，需承担相应法律责任。AI仅供辅助参考，不构成法律意见。</p><div class="soft-callout">提交后线索将进入系统接收工作台，请核对已有事实和仍待核实的信息。</div><label class="checkline"><input id="consent" type="checkbox">我已阅读并知晓上述提示</label><div class="actions dialog-actions"><button id="cancel" type="button">返回修改</button><button id="send" class="primary" type="button">确认提交 <span aria-hidden="true">→</span></button></div></dialog>
   <div id="toast" hidden role="status"></div>
-  <footer class="site-footer"><span>强制报告智能体 · 让每一条线索被看见</span><span>本地保存 · 虚构演示</span></footer></div></div>
+  <footer class="site-footer"><span>强制报告智能体 · 让每一条线索被看见</span><span>信息保密 · 及时保护</span></footer></div></div>
   <script type="module" src="/report.js"></script>
 </body>
 </html>

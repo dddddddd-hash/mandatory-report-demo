@@ -1,4 +1,5 @@
 import test from "node:test";
+import { sessionClient } from "./support/client.js";
 import assert from "node:assert/strict";
 import http from "node:http";
 import fs from "node:fs";
@@ -57,6 +58,7 @@ test("分密钥发现模型、去重与厂商图标、正确路由和流式回�
   const { complete, aiConfig } = await import("../ai.js");
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + server.address().port;
+  const fetch = sessionClient(base);
   const post = (url, body) => fetch(base + url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try {
     const config = aiConfig(); assert.equal(config.models.length, 9);

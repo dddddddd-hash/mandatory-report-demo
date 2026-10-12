@@ -1,4 +1,5 @@
 import test from "node:test";
+import { sessionClient } from "./support/client.js";
 import assert from "node:assert/strict";
 import http from "node:http";
 import fs from "node:fs";
@@ -38,6 +39,7 @@ test("增量即时传递、刷新进度、完成落库、中断重试、断连�
   const { server } = await import("../server.js");
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + server.address().port, model = "[故人情]gemini-3.8-flash";
+  const fetch = sessionClient(base);
   const post = async (url, body) => fetch(base + url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const get = async (id, learnerId = "public") => (await fetch(base + "/api/sessions/" + id + "?learnerId=" + learnerId)).json();
   const collect = async response => { const events = []; await readEvents(response.body, e => events.push({ event: e.event, value: JSON.parse(e.data) })); return events; };

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { sessionClient } from "./support/client.js";
 import assert from "node:assert/strict";
 import http from "node:http";
 import fs from "node:fs";
@@ -71,7 +72,8 @@ test("停止回填、提前停止、工具草稿、用户记忆隔离及不支�
   const base = "http://127.0.0.1:" + server.address().port;
   const owner = "11111111-1111-4111-8111-111111111111", stranger = "22222222-2222-4222-8222-222222222222";
   const model = "[故人情]gemini-3.8-flash";
-  const request = (url, body, user = owner, method = body ? "POST" : "GET") => fetch(base + url, { method, headers: { "Content-Type": "application/json", "X-Chat-User": user }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const clients = new Map([[owner, sessionClient(base)], [stranger, sessionClient(base)]]);
+  const request = (url, body, user = owner, method = body ? "POST" : "GET") => clients.get(user)(base + url, { method, headers: { "Content-Type": "application/json", "X-Chat-User": user }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const create = async () => (await request("/api/sessions", { learnerId: "public", model, kind: "qa" })).json();
   const get = async s => (await request("/api/sessions/" + s.id + "?learnerId=public")).json();
   const memory = async user => (await request("/api/memory?learnerId=public", undefined, user)).json();
@@ -111,7 +113,7 @@ test("停止回填、提前停止、工具草稿、用户记忆隔离及不支�
     assert.equal((await memory(owner)).longTerm, "回答先给操作步骤"); assert.equal((await memory(owner)).shortTerm.length, 1);
     assert.equal((await memory(stranger)).longTerm, ""); assert.equal((await memory(stranger)).shortTerm.length, 0);
     assert.equal((await request("/api/sessions?learnerId=public", undefined, stranger).then(r => r.json())).length, 0);
-    const anotherProfile = await (await request("/api/memory?learnerId=teacher-1")).json(); assert.equal(anotherProfile.longTerm, "");
+    const sameOwner = await (await request("/api/memory?learnerId=teacher-1")).json(); assert.equal(sameOwner.longTerm, "回答先给操作步骤", "客户端传入身份不能切换记忆所有者");
     assert.equal((await request("/api/reports").then(r => r.json())).length, 0, "工具只能准备草稿，不能提交");
     mode = "normal";
     const next = await create(); await collect(await send(next, "另一个虚构制度问题", "next"));
